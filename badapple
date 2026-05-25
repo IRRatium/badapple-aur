@@ -1,69 +1,66 @@
 #!/bin/bash
-# Original code: Nguyen Khac Trung Kien
-# Fork by: Felipe Avelar
-# Python Perfect Sync + Centered Video Mod
+# Original code: Nguyen Khac Trung Kien [cite: 10]
+# Fork by: Felipe Avelar (Python Perfect Sync + Centered Video Mod) [cite: 10]
 
 SYSTEM_DATA="/usr/share/badapple"
-FRAMES_DIR="$SYSTEM_DATA/frames-ascii"
-MP3="$SYSTEM_DATA/bad_apple.mp3"
+FRAMES_FILE="$SYSTEM_DATA/frames.txt"
+MP3="$SYSTEM_DATA/bad_apple.mp3" [cite: 10]
 
-if ! command -v mpv &>/dev/null; then
-    echo "Error: mpv is not installed"
+if ! command -v mpv &>/dev/null; then [cite: 11]
+    echo "Error: mpv is not installed" [cite: 11]
     exit 1
 fi
-if [[ ! -d "$FRAMES_DIR" || -z "$(ls -A "$FRAMES_DIR" 2>/dev/null)" ]]; then
-    echo "Error: frames not found at $FRAMES_DIR — reinstall the package"
+if [[ ! -f "$FRAMES_FILE" ]]; then
+    echo "Error: frames.txt not found at $SYSTEM_DATA — reinstall the package"
     exit 1
 fi
-if [[ ! -f "$MP3" ]]; then
-    echo "Error: audio not found at $MP3 — reinstall the package"
+if [[ ! -f "$MP3" ]]; then [cite: 13]
+    echo "Error: audio not found at $MP3 — reinstall the package" [cite: 13]
     exit 1
 fi
 
-printf "\033c"
-tput civis
+printf "\033c" [cite: 14]
+tput civis [cite: 14]
 
-mpv "$MP3" > /dev/null 2>&1 &
-MPV_PID=$!
+mpv "$MP3" > /dev/null 2>&1 & [cite: 14]
+MPV_PID=$! [cite: 14]
+trap 'tput cnorm; kill $MPV_PID 2>/dev/null || true; printf "\033c"' EXIT INT TERM [cite: 14]
 
-trap 'tput cnorm; kill $MPV_PID 2>/dev/null || true; printf "\033c"' EXIT INT TERM
-
-export FRAMES_DIR
+export FRAMES_FILE
 
 python3 << 'PYEOF'
 import os, sys, time, shutil
 
-frames_dir = os.environ.get('FRAMES_DIR')
-
-frames = sorted(
-    [f for f in os.listdir(frames_dir) if os.path.isfile(os.path.join(frames_dir, f))],
-    key=lambda x: int("".join(filter(str.isdigit, x)) or 0)
-)
-
-if not frames:
-    sys.exit("Error: No frames found.")
-
+frames_file = os.environ.get('FRAMES_FILE')
+FRAME_HEIGHT = 36  # Фиксированная высота кадра
+FRAME_WIDTH = 96   # Фиксированная ширина кадра
 fps = 30.0
 
-with open(os.path.join(frames_dir, frames[0]), "r", encoding="utf-8") as f:
-    first_frame_lines = f.read().splitlines()
-    frame_height = len(first_frame_lines)
-    frame_width = max(len(line) for line in first_frame_lines) if first_frame_lines else 0
+try:
+    with open(frames_file, "r", encoding="utf-8") as f:
+        all_lines = f.read().splitlines()
+except Exception as e:
+    sys.exit(f"Error reading frames: {e}")
+
+total_frames = len(all_lines) // FRAME_HEIGHT
+
+if total_frames == 0:
+    sys.exit("Error: No frames found in file.")
 
 start_time = time.time()
 
-for i, filename in enumerate(frames):
-    filepath = os.path.join(frames_dir, filename)
-    with open(filepath, "r", encoding="utf-8") as f:
-        lines = f.read().splitlines()
+for i in range(total_frames):
+    start_line = i * FRAME_HEIGHT
+    end_line = start_line + FRAME_HEIGHT
+    frame_lines = all_lines[start_line:end_line]
 
     term_cols, term_lines = shutil.get_terminal_size()
-    pad_y = max(0, (term_lines - frame_height) // 2)
-    pad_x = max(0, (term_cols - frame_width) // 2)
+    pad_y = max(0, (term_lines - FRAME_HEIGHT) // 2)
+    pad_x = max(0, (term_cols - FRAME_WIDTH) // 2)
 
     out = '\033[H' + ('\n' * pad_y)
     left_spaces = ' ' * pad_x
-    for line in lines:
+    for line in frame_lines:
         out += left_spaces + line + '\033[K\n'
     out += '\033[J'
 
