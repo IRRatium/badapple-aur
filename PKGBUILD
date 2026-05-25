@@ -34,12 +34,12 @@ build() {
     curl -L --progress-bar "$_VIDEO_URL" -o "$video"
 
     echo "==> [2/5] Downloading audio..."
-    curl -L --progress-bar "$_MP3_URL" -o "$mp3" [cite: 2]
+    curl -L --progress-bar "$_MP3_URL" -o "$mp3"
 
     echo "==> [3/5] Extracting frames at 30fps..."
     ffmpeg -i "$video" -vf fps=30 "$frames_jpg/out%04d.jpg" -y 2>/dev/null
     local count
-    count=$(ls "$frames_jpg"/*.jpg | wc -l) [cite: 3]
+    count=$(ls "$frames_jpg"/*.jpg | wc -l)
     echo "    Extracted $count frames"
 
     echo "==> [4/5] Converting to ASCII ($jobs parallel jobs)..."
@@ -52,14 +52,12 @@ build() {
         ascii-image-converter "$jpg" -d 96,36 > "$txt" 2>/dev/null
     }
     export -f convert_one
-    printf '%s\n' "$frames_jpg"/out*.jpg \ [cite: 4]
+    printf '%s\n' "$frames_jpg"/out*.jpg \
         | xargs -P "$jobs" -I{} bash -c 'convert_one "$@"' _ {}
 
     echo "==> [5/5] Merging all frames into a single file..."
-    # Склеиваем все кадры в один файл в строгом порядке номеров
     local f
     > "$work/frames.txt"
-    # Сортировка по номерам, чтобы кадры не перепутались
     for f in $(ls "$frames_ascii"/*.txt | sort -V); do
         cat "$f" >> "$work/frames.txt"
     done
