@@ -1,59 +1,59 @@
-# Maintainer: IRRatium <https://github.com/IRRatium> [cite: 1]
-pkgname=badapple [cite: 1]
+# Maintainer: IRRatium <https://github.com/IRRatium>
+pkgname=badapple
 pkgver=1.1.0
 pkgrel=1
-pkgdesc="Bad Apple!! ASCII art player for the terminal" [cite: 1]
-arch=('any') [cite: 1]
-url="https://github.com/IRRatium/badapple-aur" [cite: 1]
-license=('MIT') [cite: 1]
+pkgdesc="Bad Apple!! ASCII art player for the terminal"
+arch=('any')
+url="https://github.com/IRRatium/badapple-aur"
+license=('MIT')
 
 # Runtime: only playback deps
-depends=('bash' 'mpv' 'python') [cite: 1]
+depends=('bash' 'mpv' 'python')
 
 # Build-time: everything needed to process the video
-makedepends=('ffmpeg' 'curl' 'ascii-image-converter') [cite: 1]
+makedepends=('ffmpeg' 'curl' 'ascii-image-converter')
 
-source=("badapple-$pkgver.tar.gz::https://github.com/IRRatium/badapple-aur/archive/refs/tags/v$pkgver.tar.gz") [cite: 1]
-sha256sums=('SKIP') [cite: 1]
+source=("badapple-$pkgver.tar.gz::https://github.com/IRRatium/badapple-aur/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
 
-_VIDEO_URL="https://github.com/trung-kieen/bad-apple-ascii/raw/refs/heads/main/bad_apple.mp4" [cite: 1]
-_MP3_URL="https://archive.org/download/bad-apple-resources/bad_apple_enhanced.mp3" [cite: 1]
+_VIDEO_URL="https://github.com/trung-kieen/bad-apple-ascii/raw/refs/heads/main/bad_apple.mp4"
+_MP3_URL="https://archive.org/download/bad-apple-resources/bad_apple_enhanced.mp3"
 
 build() {
-    local work="$srcdir/_badapple_build" [cite: 1]
-    local frames_jpg="$work/frames-jpg" [cite: 1]
-    local frames_ascii="$work/frames-ascii" [cite: 1]
-    local video="$work/bad_apple.mp4" [cite: 1]
-    local mp3="$work/bad_apple.mp3" [cite: 1]
-    local jobs [cite: 1]
-    jobs=$(nproc) [cite: 1]
+    local work="$srcdir/_badapple_build"
+    local frames_jpg="$work/frames-jpg"
+    local frames_ascii="$work/frames-ascii"
+    local video="$work/bad_apple.mp4"
+    local mp3="$work/bad_apple.mp3"
+    local jobs
+    jobs=$(nproc)
 
-    mkdir -p "$frames_jpg" "$frames_ascii" [cite: 1]
+    mkdir -p "$frames_jpg" "$frames_ascii"
 
-    echo "==> [1/5] Downloading video..." [cite: 1]
-    curl -L --progress-bar "$_VIDEO_URL" -o "$video" [cite: 1]
+    echo "==> [1/5] Downloading video..."
+    curl -L --progress-bar "$_VIDEO_URL" -o "$video"
 
-    echo "==> [2/5] Downloading audio..." [cite: 1]
+    echo "==> [2/5] Downloading audio..."
     curl -L --progress-bar "$_MP3_URL" -o "$mp3" [cite: 2]
 
-    echo "==> [3/5] Extracting frames at 30fps..." [cite: 1]
-    ffmpeg -i "$video" -vf fps=30 "$frames_jpg/out%04d.jpg" -y 2>/dev/null [cite: 1]
-    local count [cite: 1]
+    echo "==> [3/5] Extracting frames at 30fps..."
+    ffmpeg -i "$video" -vf fps=30 "$frames_jpg/out%04d.jpg" -y 2>/dev/null
+    local count
     count=$(ls "$frames_jpg"/*.jpg | wc -l) [cite: 3]
-    echo "    Extracted $count frames" [cite: 1]
+    echo "    Extracted $count frames"
 
-    echo "==> [4/5] Converting to ASCII ($jobs parallel jobs)..." [cite: 1]
-    export frames_ascii [cite: 1]
-    convert_one() { [cite: 1]
-        local jpg="$1" [cite: 1]
-        local name txt [cite: 1]
-        name=$(basename "$jpg") [cite: 1]
-        txt="${frames_ascii}/${name}.txt" [cite: 1]
-        ascii-image-converter "$jpg" -d 96,36 > "$txt" 2>/dev/null [cite: 1]
-    } [cite: 1]
-    export -f convert_one [cite: 1]
+    echo "==> [4/5] Converting to ASCII ($jobs parallel jobs)..."
+    export frames_ascii
+    convert_one() {
+        local jpg="$1"
+        local name txt
+        name=$(basename "$jpg")
+        txt="${frames_ascii}/${name}.txt"
+        ascii-image-converter "$jpg" -d 96,36 > "$txt" 2>/dev/null
+    }
+    export -f convert_one
     printf '%s\n' "$frames_jpg"/out*.jpg \ [cite: 4]
-        | xargs -P "$jobs" -I{} bash -c 'convert_one "$@"' _ {} [cite: 5]
+        | xargs -P "$jobs" -I{} bash -c 'convert_one "$@"' _ {}
 
     echo "==> [5/5] Merging all frames into a single file..."
     # Склеиваем все кадры в один файл в строгом порядке номеров
@@ -64,22 +64,22 @@ build() {
         cat "$f" >> "$work/frames.txt"
     done
 
-    echo "    Conversion and merge done" [cite: 1]
+    echo "    Conversion and merge done"
 
-    rm -f "$video" [cite: 1]
+    rm -f "$video"
     rm -rf "$frames_jpg" "$frames_ascii"
 }
 
 package() {
-    cd "$srcdir/badapple-aur-$pkgver" [cite: 1]
-    local work="$srcdir/_badapple_build" [cite: 1]
+    cd "$srcdir/badapple-aur-$pkgver"
+    local work="$srcdir/_badapple_build"
 
     # Установка исполняемого скрипта
-    install -Dm755 badapple "$pkgdir/usr/bin/badapple" [cite: 1]
+    install -Dm755 badapple "$pkgdir/usr/bin/badapple"
 
     # Установка аудио
-    install -Dm644 "$work/bad_apple.mp3" \ [cite: 1]
-        "$pkgdir/usr/share/badapple/bad_apple.mp3" [cite: 1]
+    install -Dm644 "$work/bad_apple.mp3" \
+        "$pkgdir/usr/share/badapple/bad_apple.mp3"
 
     # Установка одного склеенного файла с кадрами
     echo "==> Installing merged frames.txt..."
