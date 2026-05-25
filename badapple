@@ -1,30 +1,30 @@
 #!/bin/bash
-# Original code: Nguyen Khac Trung Kien [cite: 10]
-# Fork by: Felipe Avelar (Python Perfect Sync + Centered Video Mod) [cite: 10]
+# Original code: Nguyen Khac Trung Kien
+# Fork by: Felipe Avelar (Python Perfect Sync + Centered Video Mod)
 
 SYSTEM_DATA="/usr/share/badapple"
 FRAMES_FILE="$SYSTEM_DATA/frames.txt"
-MP3="$SYSTEM_DATA/bad_apple.mp3" [cite: 10]
+MP3="$SYSTEM_DATA/bad_apple.mp3"
 
-if ! command -v mpv &>/dev/null; then [cite: 11]
-    echo "Error: mpv is not installed" [cite: 11]
+if ! command -v mpv &>/dev/null; then
+    echo "Error: mpv is not installed"
     exit 1
 fi
 if [[ ! -f "$FRAMES_FILE" ]]; then
     echo "Error: frames.txt not found at $SYSTEM_DATA — reinstall the package"
     exit 1
 fi
-if [[ ! -f "$MP3" ]]; then [cite: 13]
-    echo "Error: audio not found at $MP3 — reinstall the package" [cite: 13]
+if [[ ! -f "$MP3" ]]; then
+    echo "Error: audio not found at $MP3 — reinstall the package"
     exit 1
 fi
 
-printf "\033c" [cite: 14]
-tput civis [cite: 14]
+printf "\033c"
+tput civis
 
-mpv "$MP3" > /dev/null 2>&1 & [cite: 14]
-MPV_PID=$! [cite: 14]
-trap 'tput cnorm; kill $MPV_PID 2>/dev/null || true; printf "\033c"' EXIT INT TERM [cite: 14]
+mpv "$MP3" > /dev/null 2>&1 &
+MPV_PID=$!
+trap 'tput cnorm; kill $MPV_PID 2>/dev/null || true; printf "\033c"' EXIT INT TERM
 
 export FRAMES_FILE
 
