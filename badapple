@@ -1,0 +1,77 @@
+#!/bin/bash
+# Original code: Nguyen Khac Trung Kien
+# Fork by: Felipe Avelar
+# Python Perfect Sync + Centered Video Mod
+
+SYSTEM_DATA="/usr/share/badapple"
+FRAMES_DIR="$SYSTEM_DATA/frames-ascii"
+MP3="$SYSTEM_DATA/bad_apple.mp3"
+
+if ! command -v mpv &>/dev/null; then
+    echo "Error: mpv is not installed"
+    exit 1
+fi
+if [[ ! -d "$FRAMES_DIR" || -z "$(ls -A "$FRAMES_DIR" 2>/dev/null)" ]]; then
+    echo "Error: frames not found at $FRAMES_DIR — reinstall the package"
+    exit 1
+fi
+if [[ ! -f "$MP3" ]]; then
+    echo "Error: audio not found at $MP3 — reinstall the package"
+    exit 1
+fi
+
+printf "\033c"
+tput civis
+
+mpv "$MP3" > /dev/null 2>&1 &
+MPV_PID=$!
+
+trap 'tput cnorm; kill $MPV_PID 2>/dev/null || true; printf "\033c"' EXIT INT TERM
+
+export FRAMES_DIR
+
+python3 << 'PYEOF'
+import os, sys, time, shutil
+
+frames_dir = os.environ.get('FRAMES_DIR')
+
+frames = sorted(
+    [f for f in os.listdir(frames_dir) if os.path.isfile(os.path.join(frames_dir, f))],
+    key=lambda x: int("".join(filter(str.isdigit, x)) or 0)
+)
+
+if not frames:
+    sys.exit("Error: No frames found.")
+
+fps = 30.0
+
+with open(os.path.join(frames_dir, frames[0]), "r", encoding="utf-8") as f:
+    first_frame_lines = f.read().splitlines()
+    frame_height = len(first_frame_lines)
+    frame_width = max(len(line) for line in first_frame_lines) if first_frame_lines else 0
+
+start_time = time.time()
+
+for i, filename in enumerate(frames):
+    filepath = os.path.join(frames_dir, filename)
+    with open(filepath, "r", encoding="utf-8") as f:
+        lines = f.read().splitlines()
+
+    term_cols, term_lines = shutil.get_terminal_size()
+    pad_y = max(0, (term_lines - frame_height) // 2)
+    pad_x = max(0, (term_cols - frame_width) // 2)
+
+    out = '\033[H' + ('\n' * pad_y)
+    left_spaces = ' ' * pad_x
+    for line in lines:
+        out += left_spaces + line + '\033[K\n'
+    out += '\033[J'
+
+    expected_time = start_time + (i / fps)
+    current_time = time.time()
+    if expected_time > current_time:
+        time.sleep(expected_time - current_time)
+
+    sys.stdout.write(out)
+    sys.stdout.flush()
+PYEOF
