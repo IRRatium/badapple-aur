@@ -6,6 +6,9 @@ import subprocess
 import shutil
 import signal
 import io
+import fcntl
+import termios
+import struct
 from PIL import Image
 
 VIDEO_PATH = "/usr/share/badapple/bad_apple.mp4"
@@ -16,6 +19,18 @@ FPS = 30.0
 
 if not os.path.exists(VIDEO_PATH):
     sys.exit(f"Error: video not found at {VIDEO_PATH} — reinstall the package")
+
+
+def get_char_ratio():
+    try:
+        buf = fcntl.ioctl(sys.stdout.fileno(), termios.TIOCGWINSZ, b'\x00' * 8)
+        rows, cols, xpix, ypix = struct.unpack('HHHH', buf)
+        if xpix > 0 and ypix > 0 and cols > 0 and rows > 0:
+            return (xpix / cols) / (ypix / rows)
+    except:
+        pass
+    return 0.5
+
 
 print("==> Starting audio...")
 mpv_proc = subprocess.Popen(
@@ -56,6 +71,8 @@ signal.signal(signal.SIGTERM, cleanup)
 start_time = time.time()
 frame_count = 0
 prev_term_size = (0, 0)
+char_ratio = get_char_ratio()
+video_aspect = ORIG_WIDTH / ORIG_HEIGHT
 
 try:
     while True:
@@ -73,15 +90,13 @@ try:
 
         max_w = term_cols
         max_h = term_lines - 1
-        char_ratio = 0.5
-        w_by_width = max_w
-        h_by_width = int(max_w * (ORIG_HEIGHT / ORIG_WIDTH) * char_ratio)
-        w_by_height = int(max_h * (ORIG_WIDTH / ORIG_HEIGHT) / char_ratio)
-        h_by_height = max_h
-        if h_by_width <= max_h:
-            target_width, target_height = w_by_width, h_by_width
+        needed_w = int(max_h * video_aspect / char_ratio)
+        if needed_w <= max_w:
+            target_width = needed_w
+            target_height = max_h
         else:
-            target_width, target_height = w_by_height, h_by_height
+            target_width = max_w
+            target_height = int(max_w * char_ratio / video_aspect)
         target_width = max(10, target_width)
         target_height = max(5, target_height)
 
