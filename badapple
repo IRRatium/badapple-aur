@@ -1,74 +1,123 @@
-#!/bin/bash
-# Original code: Nguyen Khac Trung Kien
-# Fork by: Felipe Avelar (Python Perfect Sync + Centered Video Mod)
+#!/usr/bin/env python3
+import os
+import sys
+import time
+import subprocess
+import shutil
+import signal
+import io
+from PIL import Image
 
-SYSTEM_DATA="/usr/share/badapple"
-FRAMES_FILE="$SYSTEM_DATA/frames.txt"
-MP3="$SYSTEM_DATA/bad_apple.mp3"
+VIDEO_PATH = "/usr/share/badapple/bad_apple.mp4"
 
-if ! command -v mpv &>/dev/null; then
-    echo "Error: mpv is not installed"
-    exit 1
-fi
-if [[ ! -f "$FRAMES_FILE" ]]; then
-    echo "Error: frames.txt not found at $SYSTEM_DATA — reinstall the package"
-    exit 1
-fi
-if [[ ! -f "$MP3" ]]; then
-    echo "Error: audio not found at $MP3 — reinstall the package"
-    exit 1
-fi
+ORIG_WIDTH = 480
+ORIG_HEIGHT = 360
+FPS = 30.0
 
-printf "\033c"
-tput civis
+if not os.path.exists(VIDEO_PATH):
+    sys.exit(f"Error: video not found at {VIDEO_PATH} — reinstall the package")
 
-mpv "$MP3" > /dev/null 2>&1 &
-MPV_PID=$!
-trap 'tput cnorm; kill $MPV_PID 2>/dev/null || true; printf "\033c"' EXIT INT TERM
+print("==> Starting audio...")
+mpv_proc = subprocess.Popen(
+    ["mpv", "--no-video", VIDEO_PATH],
+    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+)
 
-export FRAMES_FILE
+print("\033c", end="")
+sys.stdout.write("\033[?25l")
+sys.stdout.flush()
 
-python3 << 'PYEOF'
-import os, sys, time, shutil
+ffmpeg_cmd = [
+    "ffmpeg", "-i", VIDEO_PATH,
+    "-f", "image2pipe", "-pix_fmt", "rgb24",
+    "-vcodec", "rawvideo", "-", "-y"
+]
+ffmpeg_proc = subprocess.Popen(
+    ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
+)
 
-frames_file = os.environ.get('FRAMES_FILE')
-FRAME_HEIGHT = 36  # Фиксированная высота кадра
-FRAME_WIDTH = 96   # Фиксированная ширина кадра
-fps = 30.0
+frame_size = ORIG_WIDTH * ORIG_HEIGHT * 3
 
-try:
-    with open(frames_file, "r", encoding="utf-8") as f:
-        all_lines = f.read().splitlines()
-except Exception as e:
-    sys.exit(f"Error reading frames: {e}")
 
-total_frames = len(all_lines) // FRAME_HEIGHT
+def cleanup(signum=None, frame=None):
+    sys.stdout.write("\033[?25h\033c")
+    sys.stdout.flush()
+    try:
+        ffmpeg_proc.terminate()
+        mpv_proc.terminate()
+    except:
+        pass
+    sys.exit(0)
 
-if total_frames == 0:
-    sys.exit("Error: No frames found in file.")
+
+signal.signal(signal.SIGINT, cleanup)
+signal.signal(signal.SIGTERM, cleanup)
 
 start_time = time.time()
+frame_count = 0
+prev_term_size = (0, 0)
 
-for i in range(total_frames):
-    start_line = i * FRAME_HEIGHT
-    end_line = start_line + FRAME_HEIGHT
-    frame_lines = all_lines[start_line:end_line]
+try:
+    while True:
+        raw_frame = ffmpeg_proc.stdout.read(frame_size)
+        if not raw_frame or len(raw_frame) != frame_size:
+            break
 
-    term_cols, term_lines = shutil.get_terminal_size()
-    pad_y = max(0, (term_lines - FRAME_HEIGHT) // 2)
-    pad_x = max(0, (term_cols - FRAME_WIDTH) // 2)
+        frame_count += 1
 
-    out = '\033[H' + ('\n' * pad_y)
-    left_spaces = ' ' * pad_x
-    for line in frame_lines:
-        out += left_spaces + line + '\033[K\n'
-    out += '\033[J'
+        term_cols, term_lines = shutil.get_terminal_size()
 
-    expected_time = start_time + (i / fps)
-    current_time = time.time()
-    if expected_time > current_time:
-        time.sleep(expected_time - current_time)
+        if (term_cols, term_lines) != prev_term_size:
+            sys.stdout.write("\033[2J")
+            prev_term_size = (term_cols, term_lines)
 
-    sys.stdout.write(out)
-    sys.stdout.flush()
-PYEOF
+        max_w = term_cols
+        max_h = term_lines - 1
+        char_ratio = 0.5
+        w_by_width = max_w
+        h_by_width = int(max_w * (ORIG_HEIGHT / ORIG_WIDTH) * char_ratio)
+        w_by_height = int(max_h * (ORIG_WIDTH / ORIG_HEIGHT) / char_ratio)
+        h_by_height = max_h
+        if h_by_width <= max_h:
+            target_width, target_height = w_by_width, h_by_width
+        else:
+            target_width, target_height = w_by_height, h_by_height
+        target_width = max(10, target_width)
+        target_height = max(5, target_height)
+
+        pad_top = (max_h - target_height) // 2
+        pad_left = (max_w - target_width) // 2
+
+        img = Image.frombytes("RGB", (ORIG_WIDTH, ORIG_HEIGHT), raw_frame)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        png_data = buf.getvalue()
+
+        aic_proc = subprocess.run(
+            ["ascii-image-converter", "-", "-d",
+             f"{target_width},{target_height}"],
+            input=png_data, capture_output=True
+        )
+        ascii_lines = aic_proc.stdout.decode(
+            "utf-8", errors="replace").splitlines()
+
+        prefix = " " * pad_left
+        out = "\033[H"
+        for _ in range(pad_top):
+            out += "\033[K\n"
+        for line in ascii_lines:
+            out += prefix + line + "\033[K\n"
+        out += "\033[J"
+
+        expected_time = start_time + (frame_count / FPS)
+        now = time.time()
+        if expected_time > now:
+            time.sleep(expected_time - now)
+
+        sys.stdout.write(out)
+        sys.stdout.flush()
+
+except Exception:
+    cleanup()
+
+cleanup()
