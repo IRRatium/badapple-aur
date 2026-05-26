@@ -1,6 +1,6 @@
 # badapple
 
-Bad Apple!! ASCII art player for the terminal.
+Bad Apple!! ASCII art player for the terminal with real-time ASCII rendering.
 
 ## Install (AUR)
 
@@ -10,28 +10,21 @@ yay -S badapple
 paru -S badapple
 ```
 
-Everything happens automatically during install — video is downloaded, frames are extracted and converted to ASCII. Just run `badapple` when it's done.
-
 ## Usage
 
 ```bash
 badapple
 ```
 
-Frames are stored system-wide in `/usr/share/badapple/`.
+Video is downloaded during install and stored in `/usr/share/badapple/`. Rendering happens in real-time via `ascii-image-converter`.
 
 ## Dependencies
 
-**Runtime** (installed automatically):
+- `python` + `python-pillow` — frame decoding
 - `mpv` — audio playback
-- `python` — frame rendering
-
-**Build-time** (used during install, can be removed after):
-- `ffmpeg` — frame extraction
-- `curl` — downloading assets
-- `ascii-image-converter` — image to ASCII conversion
+- `ffmpeg` — video decoding
+- `ascii-image-converter` — ASCII rendering
 
 ## Credits
 
-- Original: [Nguyen Khac Trung Kien](https://github.com/trung-kieen/bad-apple-ascii)
-- Fork: Felipe Avelar (Python Perfect Sync + Centered Video)
+- Original video source: [Nguyen Khac Trung Kien](https://github.com/trung-kieen/bad-apple-ascii)
