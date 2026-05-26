@@ -24,7 +24,3 @@ Video is downloaded during install and stored in `/usr/share/badapple/`. Renderi
 - `mpv` — audio playback
 - `ffmpeg` — video decoding
 - `ascii-image-converter` — ASCII rendering
-
-## Credits
-
-- Original video source: [Nguyen Khac Trung Kien](https://github.com/trung-kieen/bad-apple-ascii)
