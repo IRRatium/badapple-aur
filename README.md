@@ -1,5 +1,11 @@
 # badapple
 
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=6m6i0rfLfUY">
+    <img src="https://img.youtube.com/vi/6m6i0rfLfUY/hqdefault.jpg" alt="Смотреть Bad Apple!!" width="600">
+  </a>
+</p>
+
 Bad Apple!! ASCII art player for the terminal with real-time ASCII rendering.
 
 ## Install (AUR)
