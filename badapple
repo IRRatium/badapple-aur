@@ -89,7 +89,7 @@ try:
             prev_term_size = (term_cols, term_lines)
 
         max_w = term_cols
-        max_h = term_lines - 1
+        max_h = term_lines
         needed_w = int(max_h * video_aspect / char_ratio)
         if needed_w <= max_w:
             target_width = needed_w
@@ -120,8 +120,11 @@ try:
         out = "\033[H"
         for _ in range(pad_top):
             out += "\033[K\n"
-        for line in ascii_lines:
-            out += prefix + line + "\033[K\n"
+        for i, line in enumerate(ascii_lines):
+            if i < len(ascii_lines) - 1:
+                out += prefix + line + "\033[K\n"
+            else:
+                out += prefix + line + "\033[K"
         out += "\033[J"
 
         expected_time = start_time + (frame_count / FPS)
